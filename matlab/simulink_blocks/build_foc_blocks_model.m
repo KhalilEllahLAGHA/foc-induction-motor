@@ -21,6 +21,7 @@ function build_foc_blocks_model()
 mdl = 'foc_im_blocks';
 here = fileparts(mfilename('fullpath'));
 slx = fullfile(here, [mdl '.slx']);
+addpath(fullfile(here, '..', 'm_files'));
 
 if bdIsLoaded(mdl), close_system(mdl, 0); end
 if isfile(slx), delete(slx); end
@@ -83,6 +84,8 @@ ln(mdl, 'FOC Controller/6', 'log_psi_est/1');
 
 configure_foc_dc_link(mdl);
 arrange_all(mdl);
+add_foc_scopes(mdl);
+straighten_foc_wires(mdl);
 save_system(mdl, slx);
 fprintf('generated %s\n', slx);
 end

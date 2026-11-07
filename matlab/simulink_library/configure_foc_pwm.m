@@ -3,10 +3,19 @@ function configure_foc_pwm(mdl)
 sys = [mdl '/PWM Generator'];
 old = getSimulinkBlockHandle(sys);
 position = [470 400 560 460];
+gateScope = getSimulinkBlockHandle([mdl '/Scopes/IGBT gates']);
+if gateScope ~= -1
+    scopePorts = get_param([mdl '/Scopes'], 'PortHandles');
+    scopeInput = scopePorts.Inport(str2double(get_param(gateScope, 'Port')));
+end
 if old ~= -1
     position = get_param(old, 'Position');
     delete_line(mdl, 'FOC Controller/1', 'PWM Generator/1');
     delete_line(mdl, 'PWM Generator/1', 'Inverter/1');
+    if gateScope ~= -1
+        oldPorts = get_param(old, 'PortHandles');
+        delete_line(mdl, oldPorts.Outport, scopeInput);
+    end
     delete_block(old);
 end
 
@@ -43,4 +52,8 @@ end
 add_line(sys, 'Custom gate timing/1', 'g/1', 'autorouting', 'on');
 add_line(mdl, 'FOC Controller/1', 'PWM Generator/1', 'autorouting', 'on');
 add_line(mdl, 'PWM Generator/1', 'Inverter/1', 'autorouting', 'on');
+if gateScope ~= -1
+    newPorts = get_param(sys, 'PortHandles');
+    add_line(mdl, newPorts.Outport, scopeInput, 'autorouting', 'on');
+end
 end

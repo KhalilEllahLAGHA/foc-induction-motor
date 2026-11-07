@@ -161,6 +161,8 @@ The first model implements the stationary-frame motor equations, PI controllers,
 
 ![Fundamental-block Simulink drive](matlab/outputs/diagrams/blocks_top.png)
 
+The **Scopes** panel groups the live speed, torque, phase currents, d and q currents, rotor flux, and DC-link voltage. The speed, d and q currents, and flux views show the measured or estimated signal alongside its reference.
+
 The modulator supplies the duty vector $d=[d_a,d_b,d_c]^\top$. For an ideal averaged bridge, $i_{\rm bridge}=d^\top i_{abc}$ and $v_{\alpha\beta}=v_{dc}Md$, where $M$ is the Clarke matrix. Thus the same command that changes the voltage applied to the motor changes the current drawn from the link.
 
 $$
@@ -194,6 +196,8 @@ The illustrative component values are $R_{\rm dc}=0.10$ Ω, $L_{\rm dc}=0.5$ mH,
 The switching model uses the Simscape Electrical induction-machine and Universal Bridge blocks with discrete controllers. It measures two phase currents and reconstructs the third as $i_c=-i_a-i_b$. The SPS Park blocks use a sine reference, so the controller adapts the axis order and sign to its cosine-referenced convention. Both sets of gates come from a custom Simulink subsystem. SPWM compares held commands with the triangle. SVPWM calculates the sector and dwell times and evaluates the centered seven-segment sequence. Switching instants are resolved on the common 1 µs grid.
 
 ![Simscape switching drive with the custom modulator](matlab/outputs/diagrams/library_top.png)
+
+The **Scopes** panel also shows the three upper IGBT gate commands. The gate view spans six PWM periods at 10 kHz, and the phase-current view shows the switching ripple at the electrical simulation step.
 
 Run `compare_foc_pwm` in `matlab/simulink_library` to simulate both modes and regenerate the overlays and CSV.
 
@@ -239,7 +243,7 @@ The Python-only unloaded tracking study ramps to 1000 rpm from 0.30 to 0.90 s an
 
 The three implementations reproduce the speed steps, reversal, and load rejection with the same rotor-flux target. The fundamental blocks expose the motor and DC-link equations. Python provides an independent numerical model and makes it easy to add speed profiles. The Simscape bridge resolves individual switching pulses and makes the SPWM and SVPWM ripple comparison possible. The flux reference stays fixed in this study, and the indirect orientation uses the nominal rotor time constant.
 
-## Appendix. Stationary-frame machine equations
+## Appendix A. Stationary-frame machine equations
 
 Write the stator current and rotor flux as two-vectors in the stationary frame and define $J_{90}=\begin{bmatrix}0&-1\\1&0\end{bmatrix}$, $\omega_r=p\omega_m$, $\sigma=1-L_m^2/(L_sL_r)$, and $R_\sigma=R_s+R_r(L_m/L_r)^2$. The electrical equations implemented by the fundamental-block and Python models are
 
@@ -263,6 +267,52 @@ J\dot{\omega}_m=T_e-T_L-B\omega_m.
 $$
 
 This uses rotor flux as an electrical state. The equivalent current-state formulation follows from $\boldsymbol{\psi}_r=L_r\boldsymbol{i}_r+L_m\boldsymbol{i}_s$. The resulting transient inductance is $\sigma L_s=3.94$ mH. The input matrix in section 6.1 is $B_{\rm IM}=[I_2/(\sigma L_s);\ 0_{2\times2}]$.
+
+## Appendix B. Physical derivation of the PI gains
+
+A PI regulator applies $u(t)=K_p e(t)+K_i\int_0^t e(\tau)\,d\tau$. The proportional term responds to the present error. The integral term builds the voltage or torque needed to remove a persistent error. In this drive, the two current PIs output voltages, and the speed PI outputs a torque request. The 400 Hz current-loop and 30 Hz speed-loop targets are design choices. The motor parameters determine the gains for those targets.
+
+### B.1 Current PIs on the d and q axes
+
+**From flux linkage to an electrical plant.** The stator flux linkage is $\boldsymbol\psi_s=L_s\boldsymbol i_s+L_m\boldsymbol i_r$. Using $\boldsymbol i_r=(\boldsymbol\psi_r-L_m\boldsymbol i_s)/L_r$ separates the stator-current term from the rotor-flux term.
+
+$$
+\boldsymbol\psi_s=L_\sigma\boldsymbol i_s+\frac{L_m}{L_r}\boldsymbol\psi_r,\qquad
+L_\sigma=L_s-\frac{L_m^2}{L_r}=\sigma L_s=3.944\ \mathrm{mH}.
+$$
+
+In $v_s=R_s i_s+d\psi_s/dt$ on either stationary axis, the rotor-flux derivative from Appendix A contributes the current term $(L_m/L_r)(L_m/\tau_r)i_s$. Adding it to the stator resistance term gives
+
+$$
+R_\sigma=R_s+\frac{L_m^2}{L_r\tau_r}
+        =R_s+R_r\left(\frac{L_m}{L_r}\right)^2
+        =1.206\ \Omega.
+$$
+
+The inductance sets the voltage needed to change the current quickly. The resistance term combines the stator resistance with the rotor contribution reflected through the magnetic coupling. For tuning, the project uses the common nominal plant $G_i(s)=1/(L_\sigma s+R_\sigma)$ for both axes. This isolates the fast electrical dynamics and treats the remaining flux and speed terms as disturbances or feed-forward terms. The simulation still retains the full machine and flux dynamics. [Rotor-field-oriented current control](https://imperix.com/doc/implementation/rotor-field-oriented-control)
+
+**Place the zero and set the crossover.** Write the PI as $C_i(s)=K_{p,i}(s+K_{i,i}/K_{p,i})/s$. Place its zero at the nominal electrical pole by setting $K_{i,i}/K_{p,i}=R_\sigma/L_\sigma$. This gives $C_i(s)G_i(s)=K_{p,i}/(L_\sigma s)$. Setting its gain to one at $\omega_{ci}=2\pi\cdot400=2513.3$ rad/s gives the two coefficients used by **each** current regulator.
+
+$$
+K_{p,i}=L_\sigma\omega_{ci}=9.91\ \mathrm{V/A},\qquad
+K_{i,i}=R_\sigma\omega_{ci}=3030.19\ \mathrm{V/(A\,s)}.
+$$
+
+For a 1 A current error, the proportional term immediately requests about 9.91 V. If the error persists, the integral term continues building the voltage correction.
+
+### B.2 Speed PI
+
+**From torque to acceleration.** The mechanical equation is $J\dot\omega_m=T_e-T_L-B\omega_m$. With the faster current loops assumed to deliver the requested torque, the plant from torque to speed is $G_\omega(s)=1/(Js+B)$. At the 30 Hz design crossover, $\omega_{cs}=188.5$ rad/s is much larger than $B/J=0.268$ rad/s, so inertia dominates and $G_\omega(s)\simeq 1/(Js)$.
+
+The proportional term supplies torque in proportion to speed error. Setting its nominal loop gain to one at $\omega_{cs}$ gives $K_{p,\omega}=J\omega_{cs}$. The design places the PI zero five times below crossover, at $\omega_z=\omega_{cs}/5=2\pi\cdot6$ rad/s. Hence $K_{i,\omega}=K_{p,\omega}\omega_z$. This lets the proportional term dominate near crossover while the integral term builds the sustained torque needed to balance load and friction at zero speed error.
+
+$$
+K_{p,\omega}=0.0056(2\pi\cdot30)=1.056\ \mathrm{N\,m\,s/rad},\qquad
+K_{i,\omega}=\frac{K_{p,\omega}\omega_{cs}}{5}
+           =39.79\ \mathrm{N\,m/rad}.
+$$
+
+These are the nominal continuous-time tuning values used in the code. The discrete implementations update the regulators every 100 µs. The measured step responses also depend on the current and torque limits.
 
 ## References
 

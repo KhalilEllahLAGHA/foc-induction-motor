@@ -25,10 +25,10 @@ function build_foc_library_model()
 mdl = 'foc_im_library';
 here = fileparts(mfilename('fullpath'));
 slx = fullfile(here, [mdl '.slx']);
+addpath(fullfile(here, '..', 'm_files'));
 
 % Block dialogs evaluate P.* expressions in the base workspace.
 if ~evalin('base', 'exist(''P'', ''var'')')
-    addpath(fullfile(here, '..', 'm_files'));
     evalin('base', 'foc_init;');
 end
 
@@ -208,6 +208,8 @@ else
 end
 
 arrange_all(mdl);
+add_foc_scopes(mdl);
+straighten_foc_wires(mdl);
 save_system(mdl, slx);
 fprintf('generated %s\n', slx);
 if ~isempty(warn)

@@ -24,20 +24,19 @@ build_if_missing(fullfile(root, 'simulink_library', 'foc_im_library.slx'), ...
 
 targets = {
     'foc_im_blocks',                        'blocks_top'
+    'foc_im_blocks/Scopes',                 'blocks_scopes'
     'foc_im_blocks/Speed Reference',        'blocks_speed_reference'
     'foc_im_blocks/FOC Controller',         'blocks_controller'
     'foc_im_blocks/FOC Controller/Id PI',   'blocks_pi'
-    'foc_im_blocks/Flux estimator & slip',  'blocks_flux_estimator'
+    'foc_im_blocks/FOC Controller/Flux estimator & slip', 'blocks_flux_estimator'
     'foc_im_blocks/SVPWM Inverter (avg)',   'blocks_inverter'
     'foc_im_blocks/SVPWM Inverter (avg)/RLC DC link', 'blocks_dc_link'
     'foc_im_blocks/Induction Motor',        'blocks_motor'
     'foc_im_library',                       'library_top'
+    'foc_im_library/Scopes',                'library_scopes'
     'foc_im_library/FOC Controller',        'library_controller'
     'foc_im_library/PWM Generator',         'library_pwm'
     };
-
-% the flux estimator lives inside the controller subsystem
-targets{5, 1} = 'foc_im_blocks/FOC Controller/Flux estimator & slip';
 
 paths = {};
 for k = 1:size(targets, 1)

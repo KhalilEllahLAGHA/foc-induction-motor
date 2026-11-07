@@ -131,6 +131,7 @@ body {{ margin: 0; color: #111; font: 14pt/1.32 'Times New Roman', serif; }}
 .toc-page {{ min-width: 7mm; text-align: right; }}
 h2 {{ font-size: 19pt; margin: 9mm 0 3mm; break-after: avoid; }}
 main > h2:first-child {{ margin-top: 0; }}
+h2[id^="appendix-b-"], h2[id^="annexe-b-"] {{ break-before: page; margin-top: 0; }}
 h3 {{ font-size: 16pt; margin: 6mm 0 2.5mm; break-after: avoid; }}
 p {{ text-align: justify; margin: 0 0 3mm; widows: 2; orphans: 2; }}
 main a {{ color: #154777; text-decoration-thickness: 0.07em; }}

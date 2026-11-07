@@ -27,6 +27,20 @@ and numeric CSV to `outputs/graphs/`. Its voltage trace is the ideal A-to-B
 voltage implied by the gate signals. Its current and torque are the actual
 simulation outputs.
 
+## Read the signals in Simulink
+
+Run `foc_init` with `m_files/` on the MATLAB path, open either saved model,
+and double-click its **Scopes** subsystem. Open the view you need and run
+the model. The scopes show rotor speed and its reference in rpm, motor and
+load torque, phase currents, the d and q currents against their references,
+and the estimated rotor flux against its target. The fundamental-block model
+also shows the DC-link voltage. The Simscape model shows the three upper IGBT
+gate commands over a 0.6 ms window, which is six PWM periods at 10 kHz.
+See the [fundamental-block](outputs/diagrams/blocks_scopes.png) and
+[Simscape](outputs/diagrams/library_scopes.png) scope layouts.
+
+## Export the diagrams
+
 Run `export_diagrams` and `export_pwm_explanations` with `m_files/` on the
 MATLAB path to regenerate model snapshots and the PWM teaching figures. The
 saved models include hand-edited layouts. The builders overwrite them, so

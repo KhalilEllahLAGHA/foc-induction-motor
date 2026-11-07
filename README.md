@@ -75,6 +75,10 @@ The run scripts load the parameters, print performance metrics, and save figures
 to `matlab/outputs/graphs/`. The comparison also saves [the numeric metrics](matlab/outputs/graphs/library_pwm_metrics.csv)
 and [a six-period close-up](matlab/outputs/graphs/library_pwm_zoom.png).
 
+For live traces in either model, initialize `foc_init` and open the **Scopes**
+subsystem. The [MATLAB guide](matlab/README.md#read-the-signals-in-simulink)
+lists the views and how to open them.
+
 ## Results
 
 | | Python | Basic blocks | Simscape SPWM | Simscape SVPWM |

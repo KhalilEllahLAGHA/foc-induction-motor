@@ -155,6 +155,8 @@ Le premier modèle assemble les équations du moteur, les PI, les transformation
 
 ![Modèle Simulink à blocs fondamentaux](matlab/outputs/diagrams/blocks_top.png)
 
+Le panneau **Scopes** regroupe la vitesse, le couple, les courants de phase, les courants d et q, le flux rotorique et la tension du bus continu. Les courbes de vitesse, de courant d et q et de flux permettent de comparer la grandeur mesurée ou estimée à sa consigne.
+
 Soit $d=[d_a,d_b,d_c]^\top$ le vecteur des rapports cycliques, et $M$ la matrice de Clarke. Le pont moyen idéal vérifie $i_{\rm pont}=d^\top i_{abc}$ et $v_{\alpha\beta}=v_{dc}Md$.
 
 $$
@@ -190,6 +192,8 @@ Le second modèle utilise la machine asynchrone et le pont universel à IGBT de 
 Les impulsions sont calculées dans le modèle. En SPWM, un comparateur confronte les consignes à la porteuse. En SVPWM, le secteur, les durées et l’ordre des sept segments déterminent l’état de chaque bras. Les deux essais utilisent la même grille de simulation de 1 µs.
 
 ![Modèle Simscape avec le modulateur et le pont à IGBT](matlab/outputs/diagrams/library_top.png)
+
+Le panneau **Scopes** affiche aussi les commandes des trois IGBT supérieurs. La fenêtre des commandes couvre six périodes à 10 kHz. La courbe des courants de phase montre l’ondulation de commutation au pas de simulation électrique.
 
 La commande `compare_foc_pwm`, dans `matlab/simulink_library`, lance les deux simulations et exporte les courbes et le tableau de mesures.
 
@@ -235,7 +239,7 @@ L’essai complémentaire à vide impose une rampe de 0 à 1000 tr/min entre 0,3
 
 Les trois modèles reproduisent les échelons de vitesse, l’inversion et le rejet de charge. Les blocs fondamentaux donnent accès aux équations du moteur et du bus continu. Python fournit une implémentation numérique indépendante. Le pont commuté de Simscape donne accès aux impulsions et à l’ondulation du courant pour comparer les modulations. La consigne de flux est fixe et l’orientation indirecte utilise la constante de temps rotorique nominale.
 
-## Annexe. Équations de la machine dans le repère fixe
+## Annexe A. Équations de la machine dans le repère fixe
 
 On définit $J_{90}=\begin{bmatrix}0&-1\\1&0\end{bmatrix}$, $\omega_r=p\omega_m$, $\sigma=1-L_m^2/(L_sL_r)$ et $R_\sigma=R_s+R_r(L_m/L_r)^2$. Le flux rotorique et le courant statorique sont des vecteurs à deux composantes.
 
@@ -258,6 +262,52 @@ J\dot{\omega}_m=T_e-T_L-B\omega_m.
 $$
 
 La formulation avec le courant rotorique comme état se déduit de $\boldsymbol{\psi}_r=L_r\boldsymbol{i}_r+L_m\boldsymbol{i}_s$. L’inductance transitoire vaut $\sigma L_s=3{,}94$ mH et la matrice d’entrée est $B_{\rm IM}=[I_2/(\sigma L_s);\ 0_{2\times2}]$.
+
+## Annexe B. Calcul des gains PI à partir du modèle physique
+
+Un PI applique $u(t)=K_p e(t)+K_i\int_0^t e(\tau)\,d\tau$. Le terme proportionnel répond à l’erreur instantanée. Le terme intégral accumule la correction de tension ou de couple nécessaire pour éliminer une erreur persistante. Les PI de courant délivrent des tensions et le PI de vitesse délivre une demande de couple. Les fréquences de 400 Hz pour le courant et de 30 Hz pour la vitesse sont des choix de réglage. Les paramètres de la machine donnent les gains correspondants.
+
+### B.1 PI des courants sur les axes d et q
+
+**Du flux au modèle électrique.** Le flux statorique s’écrit $\boldsymbol\psi_s=L_s\boldsymbol i_s+L_m\boldsymbol i_r$. En remplaçant le courant rotorique par $\boldsymbol i_r=(\boldsymbol\psi_r-L_m\boldsymbol i_s)/L_r$, on sépare la contribution du courant statorique de celle du flux rotorique.
+
+$$
+\boldsymbol\psi_s=L_\sigma\boldsymbol i_s+\frac{L_m}{L_r}\boldsymbol\psi_r,\qquad
+L_\sigma=L_s-\frac{L_m^2}{L_r}=\sigma L_s=3{,}944\ \mathrm{mH}.
+$$
+
+Dans $v_s=R_s i_s+d\psi_s/dt$ sur chaque axe fixe, la dérivée du flux rotorique de l’annexe A contient le terme de courant $(L_m/L_r)(L_m/\tau_r)i_s$. En l’ajoutant à la chute de tension résistive statorique, on obtient
+
+$$
+R_\sigma=R_s+\frac{L_m^2}{L_r\tau_r}
+        =R_s+R_r\left(\frac{L_m}{L_r}\right)^2
+        =1{,}206\ \Omega.
+$$
+
+L’inductance fixe la tension nécessaire pour faire varier rapidement le courant. La résistance équivalente réunit la résistance statorique et la contribution du rotor ramenée par le couplage magnétique. Le réglage des deux PI s’appuie sur le même modèle nominal $G_i(s)=1/(L_\sigma s+R_\sigma)$. Ce modèle isole la dynamique électrique rapide. Les autres termes de flux et de vitesse sont traités comme des perturbations ou compensés par anticipation. La simulation conserve les équations complètes de la machine. [Commande des courants en FOC à flux rotorique orienté](https://imperix.com/doc/implementation/rotor-field-oriented-control)
+
+**Placer le zéro et fixer la pulsation de coupure.** Le PI s’écrit $C_i(s)=K_{p,i}(s+K_{i,i}/K_{p,i})/s$. On place son zéro au pôle électrique nominal avec $K_{i,i}/K_{p,i}=R_\sigma/L_\sigma$. La boucle ouverte devient $C_i(s)G_i(s)=K_{p,i}/(L_\sigma s)$. En imposant un gain unitaire à $\omega_{ci}=2\pi\cdot400=2513{,}3$ rad/s, on obtient les coefficients utilisés par **chacun** des deux PI de courant.
+
+$$
+K_{p,i}=L_\sigma\omega_{ci}=9{,}91\ \mathrm{V/A},\qquad
+K_{i,i}=R_\sigma\omega_{ci}=3030{,}19\ \mathrm{V/(A\,s)}.
+$$
+
+Pour une erreur de 1 A, le terme proportionnel demande immédiatement environ 9,91 V. Si l’erreur persiste, le terme intégral continue d’ajuster la tension.
+
+### B.2 PI de vitesse
+
+**Du couple à l’accélération.** L’équation mécanique est $J\dot\omega_m=T_e-T_L-B\omega_m$. En supposant que les boucles de courant, plus rapides, réalisent le couple demandé, le modèle du couple vers la vitesse est $G_\omega(s)=1/(Js+B)$. Pour une fréquence de coupure de 30 Hz, la pulsation $\omega_{cs}=188{,}5$ rad/s est très supérieure à $B/J=0{,}268$ rad/s. L’inertie domine et $G_\omega(s)\simeq 1/(Js)$.
+
+Le terme proportionnel fournit un couple correctif en fonction de l’erreur de vitesse. Pour obtenir un gain nominal unitaire à $\omega_{cs}$, on choisit $K_{p,\omega}=J\omega_{cs}$. Le zéro du PI est placé à une pulsation cinq fois plus faible, $\omega_z=\omega_{cs}/5=2\pi\cdot6$ rad/s. D’où $K_{i,\omega}=K_{p,\omega}\omega_z$. Le proportionnel domine ainsi près de la pulsation de coupure, tandis que l’intégrale établit le couple nécessaire pour équilibrer la charge et les frottements à erreur de vitesse nulle.
+
+$$
+K_{p,\omega}=0{,}0056(2\pi\cdot30)=1{,}056\ \mathrm{N\,m\,s/rad},\qquad
+K_{i,\omega}=\frac{K_{p,\omega}\omega_{cs}}{5}
+           =39{,}79\ \mathrm{N\,m/rad}.
+$$
+
+Ces gains sont les valeurs nominales de réglage en temps continu utilisées dans le code. Les implémentations discrètes mettent à jour les régulateurs toutes les 100 µs. Les réponses aux échelons dépendent aussi des limites de courant et de couple.
 
 ## Références
 
