@@ -7,15 +7,16 @@ and the same test scenario:
 | Implementation | Folder | Inverter |
 |---|---|---|
 | Python simulation | `python/` | average-value SVPWM (switching model optional) |
-| Simulink, fundamental blocks only | `matlab/simulink_blocks/` | average-value SVPWM |
-| Simulink, Simscape Electrical | `matlab/simulink_library/` | Universal Bridge, true 10 kHz switching |
+| Simulink, fundamental blocks only | `matlab/simulink_blocks/` | average-value SVPWM with an R–L source and dynamic DC-link capacitor |
+| Simulink, Simscape Electrical | `matlab/simulink_library/` | IGBT Universal Bridge with custom SPWM and seven-segment SVPWM at 10 kHz |
 
-The three agree on every physical quantity, which is the point: the hand-built
-model validates the library one and vice versa.
+The same speed and load test lets the three implementations be checked against
+one another. The two custom PWM modes are compared on the same switching bridge.
 
-**[REPORT.pdf](REPORT.pdf)** is the full write-up: machine equations,
-Clarke/Park transforms, IFOC structure, controller tuning, results with
-commentary, the Simulink block diagrams and the three-way comparison.
+The [English report](REPORT.pdf) and [French report](REPORT.fr.pdf) explain the
+FOC architecture, Clarke/Park transforms, rotor-flux estimation, and both
+switching methods. They include the three implementations and a close-up of the
+Simscape switching results.
 
 ## The drive
 
@@ -25,9 +26,8 @@ commentary, the Simulink block diagrams and the three-way comparison.
 * **Indirect** rotor-flux orientation: the flux angle comes from slip
   integration, the flux magnitude from a current-model estimator. No flux
   sensor.
-* Cascaded control: speed PI -> torque -> `i_q*`, flux -> `i_d*`, two inner
-  current PIs with decoupling feed-forward, all with back-calculation
-  anti-windup and voltage/current limiting.
+* Cascaded control: speed PI to torque to `i_q*`, flux to `i_d*`, and two
+  inner current PIs with feed-forward compensation and output limits.
 * Amplitude-invariant (2/3) transforms, so the torque equation carries the
   3/2 factor.
 
@@ -58,8 +58,7 @@ Every input - motor data, gains, references, scenario - is at the top of
 
 Two scenarios run in sequence: a four-quadrant staircase (flux build-up,
 steps to 800, 1400 and 600 rpm, reversal to -800 rpm, 10 N·m load step) and
-an unloaded ramp + sine tracking study used to check the PI speed loop
-against the internal model principle.
+an unloaded ramp-and-hold test of the PI speed loop.
 
 ### MATLAB / Simulink (R2024b)
 
@@ -68,26 +67,40 @@ cd matlab\simulink_blocks
 run_foc_blocks        % seconds
 
 cd ..\simulink_library
-run_foc_library       % needs Simscape Electrical, ~2-3 min
+run_foc_library       % default custom SVPWM
+compare_foc_pwm       % run both custom modes on the same Simscape model
 ```
 
-Each run script loads the parameters (`m_files/foc_init.m`), simulates,
-prints the performance metrics and saves figures to `matlab/outputs/graphs/`.
+The run scripts load the parameters, print performance metrics, and save figures
+to `matlab/outputs/graphs/`. The comparison also saves [the numeric metrics](matlab/outputs/graphs/library_pwm_metrics.csv)
+and [a six-period close-up](matlab/outputs/graphs/library_pwm_zoom.png).
 
 ## Results
 
-| | Python | Simulink V1 | Simulink V2 |
-|---|---|---|---|
-| Step settling (±10 rpm) | 79 / 75 / 71 / 95 ms | 70 / 68 / 52 / 59 ms | 63 / 62 / 67 / 72 ms |
-| Speed error between steps | 0.25 rpm max | 0.16 rpm max | 4.9 rpm (PWM ripple) |
-| Load dip (10 N·m) | 69.0 rpm | 69.2 rpm | 69.6 rpm |
-| Rotor flux | 0.800 Wb | 0.800 Wb | 0.800 Wb |
-| Peak phase current | 19.1 A | 19.9 A | 20.6 A |
+| | Python | Basic blocks | Simscape SPWM | Simscape SVPWM |
+|---|---:|---:|---:|---:|
+| Step settling (±10 rpm) | 79 / 75 / 71 / 95 ms | 70 / 68 / 52 / 59 ms | 65.3 / 59.0 / 67.7 / 75.0 ms | 69.1 / 57.5 / 70.3 / 73.1 ms |
+| Maximum settled speed error | 0.25 rpm | 0.16 rpm | 1.67 rpm | 2.26 rpm |
+| Load dip (10 N·m) | 69.00 rpm | 69.17 rpm | 69.86 rpm | 69.70 rpm |
+| Final flux | 0.800 Wb | 0.800 Wb | 0.800 Wb | 0.800 Wb |
+| Peak phase current | 19.1 A | 19.92 A | 20.48 A | 20.51 A |
 
-No overshoot on any step, q-axis flux residual below 2 % throughout, and the
-load disturbance is rejected in about 70 ms. Differences between the columns
-are explained by continuous vs discrete control and averaged vs switching
-inverter.
+On the 1400 rpm plateau, current ripple RMS was 0.254 A for SPWM and 0.234 A
+for SVPWM after detrending each phase in each PWM period. The basic-block DC
+link ranged from 536.4 to 544.9 V with the illustrative source components in
+`motor_params.m`.
+
+## Rebuilding the reports
+
+With Chrome or Chromium installed, run these commands from the repository root.
+
+```powershell
+python -m pip install markdown pymupdf
+python tools/make_report_pdf.py
+python tools/make_report_pdf.py --language fr
+```
+
+The reports use the existing simulation figures and load MathJax to typeset equations.
 
 ## Limitations
 

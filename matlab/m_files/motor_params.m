@@ -35,11 +35,14 @@ P.Kt    = 1.5*P.p*P.Lm/P.Lr;               % Te = Kt * psi_r * iq    [N*m/(Wb*A)
 P.Vdc      = 540;            % DC-link voltage (~sqrt(2)*380)    [V]
 P.fsw      = 10e3;           % switching / carrier frequency     [Hz]
 P.Ts_ctrl  = 1e-4;           % control sample time (= PWM rate)  [s]
-% Must divide both the control period (100 us) and the PWM generator's
-% internal quarter-carrier offset 1/(4*fsw) = 25 us, or Simulink rejects
-% the fixed-step size.
-P.Ts_power = 2.5e-6;         % power-stage discretization step   [s]
+P.Ts_power = 1e-6;           % power-stage step (100 samples per PWM period) [s]
+P.use_svpwm = true;          % Simscape default, false selects custom SPWM
 P.v_max    = P.Vdc/sqrt(3);  % SVPWM linear phase-voltage limit  [V]
+
+% Illustrative source and DC-link components for the fundamental-block model.
+P.Rdc = 0.10;                % source series resistance [ohm]
+P.Ldc = 0.5e-3;              % source series inductance [H]
+P.Cdc = 2.2e-3;              % DC-link capacitance [F]
 
 % ---- References and limits ----------------------------------------------
 P.psi_ref = 0.8;                         % rotor flux reference        [Wb]
@@ -70,8 +73,8 @@ P.a_est = 1 - P.Ts_ctrl/P.tau_r;
 % TEST SCENARIO - multi-level constant speeds, step changes only
 % =========================================================================
 % A staircase of constant speed levels, each reached by a sudden step, with
-% a load torque applied part way through.  The ramp/sine tracking study of
-% REPORT.md section 7 is run only by the Python simulation.
+% a load torque applied part way through. The ramp-and-hold tracking study
+% in REPORT.md section 6.3 is run only by the Python simulation.
 
 P.step_t   = [0.30 0.80 1.30 1.80];   % step instants                  [s]
 P.step_rpm = [ 800 1400  600 -800];   % constant level reached by each [rpm]

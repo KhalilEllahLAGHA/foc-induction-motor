@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 480" width="1120" height="480" role="img" aria-labelledby="title">
+<title id="title">Indirect field-oriented control signal flow</title>
+<defs>
+  <marker id="command" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L8 4L0 8Z" fill="#235c95"/></marker>
+  <marker id="feedback" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L8 4L0 8Z" fill="#146756"/></marker>
+  <marker id="estimate" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0L8 4L0 8Z" fill="#9d4517"/></marker>
+  <style>
+    text {font-family:Segoe UI,Arial,sans-serif;fill:#17304a}
+    .node {fill:#eef5fc;stroke:#b2cbe3;stroke-width:1.3}
+    .measure {fill:#e8f5f1;stroke:#9ecabe}
+    .observer {fill:#fdf2e8;stroke:#e2b89d}
+    .heading {font-size:17px;font-weight:700;text-anchor:middle}
+    .detail {font-size:14px;text-anchor:middle}
+    .label {font-size:15px;font-weight:600;paint-order:stroke;stroke:#fff;stroke-width:4px}
+    .command,.feedback,.estimate {fill:none;stroke-width:2;stroke-linejoin:round}
+    .command {stroke:#235c95;marker-end:url(#command)}
+    .feedback {stroke:#146756;marker-end:url(#feedback)}
+    .estimate {stroke:#9d4517;marker-end:url(#estimate)}
+  </style>
+</defs>
+<rect width="1120" height="480" fill="#fff"/>
+<text x="22" y="30" font-size="16" font-weight="700">COMMAND PATH</text>
+<text x="22" y="169" font-size="16" font-weight="700">FEEDBACK AND FIELD ORIENTATION</text>
+<g>
+  <path class="command" d="M190 92H220"/>
+  <path class="command" d="M380 92H409"/>
+  <path class="command" d="M585 92H613"/>
+  <path class="command" d="M746 92H774"/>
+  <path class="command" d="M914 92H942"/>
+  <path class="command" d="M380 216H449V125"/>
+  <path class="feedback" d="M1015 125V222"/>
+  <path class="feedback" d="M900 246H539V125"/>
+  <path class="feedback" d="M900 278H857V368H809"/>
+  <path class="feedback" d="M1090 92H1102V452H106V125"/>
+  <path class="feedback" d="M695 452V410"/>
+  <path class="estimate" d="M674 344V172H682V125"/>
+  <path class="estimate" d="M674 190H951V222"/>
+  <path class="estimate" d="M587 382H395V144H301V125"/>
+</g>
+<g>
+  <rect class="node" x="22" y="57" width="168" height="68" rx="7"/>
+  <rect class="node" x="222" y="57" width="158" height="68" rx="7"/>
+  <rect class="node" x="411" y="57" width="174" height="68" rx="7"/>
+  <rect class="node" x="615" y="57" width="131" height="68" rx="7"/>
+  <rect class="node" x="776" y="57" width="138" height="68" rx="7"/>
+  <rect class="node" x="944" y="57" width="146" height="68" rx="7"/>
+  <rect class="node" x="222" y="188" width="158" height="57" rx="7"/>
+  <rect class="node measure" x="900" y="224" width="185" height="73" rx="7"/>
+  <rect class="node observer" x="587" y="344" width="220" height="66" rx="7"/>
+</g>
+<g>
+  <text class="heading" x="106" y="84">Speed PI</text><text class="detail" x="106" y="107">Speed error → torque</text>
+  <text class="heading" x="301" y="84">Torque to i<tspan baseline-shift="sub" font-size="12">q</tspan><tspan>*</tspan></text><text class="detail" x="301" y="107">Uses estimated flux</text>
+  <text class="heading" x="498" y="84">d and q current PIs</text><text class="detail" x="498" y="107">Voltage + feed-forward</text>
+  <text class="heading" x="680" y="84">Inverse Park</text><text class="detail" x="680" y="107">dq → αβ</text>
+  <text class="heading" x="845" y="84">PWM + bridge</text><text class="detail" x="845" y="107">Three phase voltages</text>
+  <text class="heading" x="1017" y="84">Induction motor</text><text class="detail" x="1017" y="107">Current and speed</text>
+  <text class="heading" x="301" y="211">Flux reference</text><text class="detail" x="301" y="232">Flux target → i<tspan baseline-shift="sub" font-size="11">d</tspan><tspan>*</tspan></text>
+  <text class="heading" x="993" y="252">Clarke + Park</text><text class="detail" x="993" y="277">abc → αβ → dq</text>
+  <text class="heading" x="697" y="371">Rotor-flux estimator</text><text class="detail" x="697" y="394">Flux magnitude, slip, angle</text>
+</g>
+<g>
+  <text class="label" x="552" y="240" fill="#146756">Measured d and q currents</text>
+  <text class="label" x="735" y="174" fill="#9d4517">Rotor-flux angle</text>
+  <text class="label" x="412" y="369" fill="#9d4517">Flux estimate</text>
+  <text class="label" x="165" y="445" fill="#146756">Measured rotor speed</text>
+  <text class="label" x="1027" y="180" fill="#146756">Phase</text>
+  <text class="label" x="1027" y="199" fill="#146756">currents</text>
+</g>
+</svg>

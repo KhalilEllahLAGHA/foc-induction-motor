@@ -20,13 +20,10 @@ Scenario A (main): multi-level constant-speed profile, step changes only
 A 10 N*m load-torque step is applied at t = 0.55 s and kept for the rest of
 the run.  Edit SPEED_SEGMENTS / LOAD_STEPS below to change the scenario.
 
-Scenario B (control-oriented tracking study): ramp + sine only
---------------------------------------------------------------
-No load, no torque saturation - isolates the servo behavior of the PI speed
-loop: a ramp (tracked with ~zero error, type-2 loop) followed by two sine
-segments at 2 Hz and 5 Hz (tracked with finite, frequency-dependent error -
-the PI has no sinusoidal internal model).  Figures saved as study_*.png;
-see REPORT.md section 7 for the analysis.
+Scenario B (unloaded speed tracking): ramp and hold
+--------------------------------------------------
+The drive builds flux at standstill, ramps to 1000 rpm, and holds that speed.
+Figures are saved as study_*.png. See REPORT.md section 6.3 for the analysis.
 """
 
 from __future__ import annotations
@@ -113,18 +110,16 @@ N_SUBSTEPS = 5 if PWM_MODE == "average" else 50
 
 OUT_DIR = Path(__file__).resolve().parent / "outputs" / "graphs"
 
-# --- 1.6 Scenario B: control-oriented tracking study (ramp + sine) ---------
+# --- 1.6 Scenario B: unloaded tracking study (ramp and hold) ---------------
 # Pure servo study - no load torque, references kept inside the linear
 # (unsaturated) region so the measured errors reflect the PI loop itself.
 STUDY_SPEED_SEGMENTS = [
     (0.00, 0.30, "hold", {"rpm": 0.0}),       # flux build-up at standstill
     (0.30, 0.90, "ramp", {"rpm": 1000.0}),    # linear ramp (type-2 tracking)
     (0.90, 1.20, "hold", {}),                 # settle at 1000 rpm
-    (1.20, 1.70, "sine", {"amp_rpm": 150.0, "freq_hz": 2.0}),   # slow sine
-    (1.70, 2.30, "sine", {"amp_rpm": 150.0, "freq_hz": 5.0}),   # faster sine
 ]
 STUDY_LOAD_STEPS = [(0.00, 0.0)]              # unloaded
-STUDY_T_END = 2.3
+STUDY_T_END = STUDY_SPEED_SEGMENTS[-1][1]
 
 # ===========================================================================
 # 2. SCENARIO PROFILES
@@ -296,12 +291,7 @@ def print_summary(r: dict) -> None:
 
 
 def print_study_summary(r: dict) -> None:
-    """Per-segment tracking metrics for scenario B, with the PI-loop
-    theoretical prediction for the sinusoidal segments.
-
-    Predicted sine error amplitude (internal model principle; neglecting
-    friction and the fast current loop):  |E| = A * J*w^2 / |Kp*j*w + Ki|.
-    """
+    """Report settled speed errors during the ramp and hold."""
     t = r["t"]
     rpm = 60.0 / (2.0 * math.pi)
     err = (r["omega_ref"] - r["omega_m"]) * rpm
@@ -309,19 +299,11 @@ def print_study_summary(r: dict) -> None:
     windows = [
         ("ramp (steady part)  ", 0.50, 0.88),
         ("hold 1000 rpm       ", 1.00, 1.20),
-        ("sine 2 Hz (+/-150)  ", 1.25, 1.70),
-        ("sine 5 Hz (+/-150)  ", 1.75, 2.30),
     ]
     for name, a, b in windows:
         m = (t >= a) & (t <= b)
         print(f"  {name}: max {np.abs(err[m]).max():6.2f} rpm, "
               f"rms {np.sqrt(np.mean(err[m] ** 2)):6.2f} rpm")
-
-    for f_hz, amp in ((2.0, 150.0), (5.0, 150.0)):
-        w = 2.0 * math.pi * f_hz
-        pred = amp * MOTOR.J * w ** 2 / abs(complex(KI_SPEED, KP_SPEED * w))
-        print(f"  predicted sine error at {f_hz:.0f} Hz : {pred:6.2f} rpm "
-              f"({100 * pred / amp:.1f} % of amplitude)")
 
 
 def main() -> None:
@@ -331,7 +313,7 @@ def main() -> None:
     print_summary(results)
     paths = save_all_plots(results, str(OUT_DIR))
 
-    print("--- scenario B: tracking study (ramp + sine, no load) ---")
+    print("--- scenario B: tracking study (ramp and hold, no load) ---")
     study = run_simulation(STUDY_SPEED_SEGMENTS, STUDY_LOAD_STEPS, STUDY_T_END)
     print_study_summary(study)
     paths += save_study_plots(study, str(OUT_DIR))

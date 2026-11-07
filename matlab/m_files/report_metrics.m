@@ -1,4 +1,4 @@
-function report_metrics(out, P)
+function metrics = report_metrics(out, P)
 %REPORT_METRICS  Print closed-loop performance metrics for a FOC run.
 %
 %   REPORT_METRICS(out, P) prints step settling times, plateau tracking
@@ -23,9 +23,11 @@ events = sort([P.step_t, P.t_load]);
 guard  = 5*ts;
 
 fprintf('  settling times (+/-10 rpm):');
+metrics.settling_ms = zeros(1, numel(P.step_t));
 for k = 1:numel(P.step_t)
     t_end_k = next_event(events, P.step_t(k), P.T_end, 0.4) - guard;
-    fprintf(' %5.0f ms', 1e3*settling_time(t, err, P.step_t(k), t_end_k, 10));
+    metrics.settling_ms(k) = 1e3*settling_time(t, err, P.step_t(k), t_end_k, 10);
+    fprintf(' %5.0f ms', metrics.settling_ms(k));
 end
 fprintf('\n');
 
@@ -34,18 +36,23 @@ settled = t >= P.step_t(1) + 0.15;
 for ev = events
     settled = settled & ~(t >= ev - guard & t < ev + 0.15);
 end
+metrics.plateau_max_rpm = max(abs(err(settled)));
+metrics.plateau_rms_rpm = rms_of(err(settled));
 fprintf('  plateau error   : max %6.2f rpm, rms %6.2f rpm\n', ...
-        max(abs(err(settled))), rms_of(err(settled)));
+        metrics.plateau_max_rpm, metrics.plateau_rms_rpm);
 
 t_dip = next_event(events, P.t_load, P.T_end, 0.25) - guard;
 win = t >= P.t_load & t <= t_dip;
-fprintf('  load-step dip   : %6.2f rpm\n', max(abs(err(win))));
+metrics.load_dip_rpm = max(abs(err(win)));
+fprintf('  load-step dip   : %6.2f rpm\n', metrics.load_dip_rpm);
 
 % ---- common checks -------------------------------------------------------
 psi = resample_sig(out, 'psi_est', t);
 iabc = resample_sig(out, 'i_abc', t);
+metrics.final_flux_wb = psi(end);
+metrics.sampled_peak_current_a = max(abs(iabc(:)));
 fprintf('  rotor flux (end): %6.3f Wb (ref %.2f)   peak current: %5.2f A\n', ...
-        psi(end), P.psi_ref, max(abs(iabc(:))));
+        metrics.final_flux_wb, P.psi_ref, metrics.sampled_peak_current_a);
 end
 
 % ==========================================================================

@@ -116,6 +116,17 @@ style_axes(ax2, c, 'Time [s]', 'Current [A]', ...
 legend(ax1, 'Location', 'northwest', 'NumColumns', 3);
 paths{end+1} = save_fig(f, out_dir, variant, 'currents_abc');
 
+if any(strcmp(who(out), 'v_dc'))
+    f = new_fig(c);
+    [t, vdc] = sig(out, 'v_dc');
+    plot(t, vdc, 'Color', c.blue, 'LineWidth', 1.4, 'DisplayName', 'DC link');
+    hold on;
+    yline(P.Vdc, '--', 'Color', c.ink2, 'DisplayName', 'Ideal source');
+    style_axes(gca, c, 'Time [s]', 'Voltage [V]', 'DC-link voltage with R-L source');
+    legend('Location', 'best');
+    paths{end+1} = save_fig(f, out_dir, variant, 'dc_link');
+end
+
 fprintf('saved %d figures to %s\n', numel(paths), out_dir);
 end
 
