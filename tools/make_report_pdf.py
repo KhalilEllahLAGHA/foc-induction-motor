@@ -141,7 +141,14 @@ img[src$="foc_architecture.svg"] {{ width: 100%; }}
 img[src$="svpwm_hexagon.png"] {{ width: 76%; }}
 img[src$="library_top.png"], img[src$="blocks_speed.png"],
 img[src$="blocks_dc_link.png"] {{ width: 85%; }}
-img[src$="library_pwm_comparison.png"], img[src$="library_pwm_zoom.png"] {{ width: 91%; }}
+img[src$="library_speed.png"], img[src$="library_torque.png"],
+img[src$="library_currents_dq.png"], img[src$="library_pwm_comparison.png"] {{ width: 91%; }}
+img[src$="library_currents_abc_cycle.png"] {{ width: 96%; }}
+img[src*="library_pwm_voltage_"] {{ width: 92%; }}
+img[src*="pwm_carrier_"] {{ width: 96%; }}
+p:has(> img[src$="library_pwm_voltage_svpwm7.png"]),
+p:has(+ p > img[src*="pwm_carrier_"]),
+p:has(+ p > img[src$="library_pwm_comparison.png"]) {{ break-after: avoid; break-inside: avoid; }}
 table {{ border-collapse: collapse; width: 100%; margin: 4mm 0; font-size: 11pt; break-inside: avoid; }}
 th, td {{ border: 1px solid #aaa; padding: 1.6mm 2mm; text-align: left; }}
 th {{ background: #f2f2f2; }}

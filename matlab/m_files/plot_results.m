@@ -1,4 +1,4 @@
-function paths = plot_results(out, variant)
+function paths = plot_results(out, variant, P)
 %PLOT_RESULTS  Post-process a FOC simulation run and save all figures.
 %
 %   paths = PLOT_RESULTS(out, variant)
@@ -8,6 +8,7 @@ function paths = plot_results(out, variant)
 %             variables: wm, w_ref, Te, TL, id, iq, iq_ref, psi_est, i_abc
 %             (all timeseries).
 %   variant - 'blocks' or 'library'; used as a filename prefix.
+%   P       - parameters used for the run (defaults to the base workspace).
 %
 %   Figures (speed, torque, dq currents, rotor flux, phase currents) are
 %   saved as PNG into  matlab/outputs/graphs/.
@@ -15,7 +16,7 @@ function paths = plot_results(out, variant)
 if nargin < 2, variant = 'sim'; end
 
 % Base workspace P (for references/limits shown on the plots).
-P = evalin('base', 'P');
+if nargin < 3, P = evalin('base', 'P'); end
 
 out_dir = fullfile(fileparts(fileparts(mfilename('fullpath'))), ...
                    'outputs', 'graphs');
@@ -116,6 +117,25 @@ style_axes(ax2, c, 'Time [s]', 'Current [A]', ...
 legend(ax1, 'Location', 'northwest', 'NumColumns', 3);
 paths{end+1} = save_fig(f, out_dir, variant, 'currents_abc');
 
+if strcmp(variant, 'library')
+    cycle = phase_cycle(t, y(:,1), P);
+    if ~isempty(cycle)
+        f = new_fig(c);
+        ax = axes(f);
+        hold(ax, 'on');
+        timeMs = (t(cycle) - t(cycle(1)))*1e3;
+        for k = 1:3
+            plot(ax, timeMs, y(cycle,k), 'Color', cols{k}, ...
+                'LineWidth', 1.1, 'DisplayName', names{k});
+        end
+        xlim(ax, [0 timeMs(end)]);
+        style_axes(ax, c, sprintf('Time since %.4f s (ms)', t(cycle(1))), ...
+            'Current [A]', 'Stator phase currents over one electrical cycle');
+        legend(ax, 'Location', 'northoutside', 'Orientation', 'horizontal');
+        paths{end+1} = save_fig(f, out_dir, variant, 'currents_abc_cycle');
+    end
+end
+
 if any(strcmp(who(out), 'v_dc'))
     f = new_fig(c);
     [t, vdc] = sig(out, 'v_dc');
@@ -141,6 +161,23 @@ t = ts.Time;
 y = squeeze(ts.Data);
 % Row-vector signals logged as 1xNxM come back MxN after squeeze -> fix.
 if size(y, 1) ~= numel(t), y = y.'; end
+end
+
+function idx = phase_cycle(t, phaseA, P)
+% Locate two rising crossings of the PWM-period means on the settled plateau.
+% The figure itself uses the original, unfiltered current samples.
+idx = [];
+window = find(t >= 1.05 & t < 1.25);
+samples = round(1/(P.fsw*P.Ts_power));
+window = window(1:floor(numel(window)/samples)*samples);
+if numel(window) < 2*samples, return; end
+periodTime = mean(reshape(t(window), samples, []), 1);
+periodCurrent = mean(reshape(phaseA(window), samples, []), 1);
+crossings = find(periodCurrent(1:end-1) < 0 & periodCurrent(2:end) >= 0 & periodTime(1:end-1) >= 1.09, 2);
+if numel(crossings) < 2, return; end
+crossingTime = periodTime(crossings) - periodCurrent(crossings).* ...
+    (periodTime(crossings+1)-periodTime(crossings))./(periodCurrent(crossings+1)-periodCurrent(crossings));
+idx = find(t >= crossingTime(1) & t <= crossingTime(2));
 end
 
 function f = new_fig(c)

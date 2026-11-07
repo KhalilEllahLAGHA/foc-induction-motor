@@ -135,6 +135,14 @@ Si $T_1+T_2>T_s$, la tension demandée dépasse la limite dans cette direction. 
 
 Les modèles moyennés utilisent la formulation équivalente par décalage commun. Ils ajoutent $-\tfrac12(\max(v_a^*,v_b^*,v_c^*)+\min(v_a^*,v_b^*,v_c^*))$ à chaque consigne de phase. Les valeurs extrêmes sont alors centrées et les tensions entre phases sont conservées. [Calcul min-max de Texas Instruments](https://software-dl.ti.com/processor-industrial-sw/esd/motor_control_sdk/am243x/2025_00_00_06/docs/api_guide_am243x/svgen_8h_source.html)
 
+**Pourquoi la SPWM peut produire les mêmes sept segments.** Le schéma pédagogique utilise des consignes sinusoïdales à 50 Hz et une porteuse ralentie à 150 Hz pour montrer trois périodes PWM sur un cycle électrique.
+
+![Illustration avec des consignes à 50 Hz et une porteuse à 150 Hz montrant les trois commandes de grille et les états combinés](matlab/outputs/diagrams/pwm_carrier_slow.png)
+
+Sur le détail agrandi, les consignes maintenues sont classées dans l’ordre A, C, B, de la plus haute à la plus basse. Lorsque la porteuse SPWM descend, les interrupteurs supérieurs s’allument dans cet ordre. Lorsque la porteuse remonte, ils s’éteignent dans l’ordre inverse. Chaque bras reçoit une seule impulsion continue. Les trois bras ensemble passent par les états `000 → 100 → 101 → 111 → 101 → 100 → 000`. La SVPWM centrée planifie cet ordre à partir du secteur et des durées. Sa représentation par porteuse ajoute un décalage commun qui conserve l’ordre des croisements et en déplace les instants.
+
+**Variante directe à quatre segments.** Dans ce secteur, le même calcul des durées permet de réaliser la séquence `000 → 100 → 101 → 111`. Les deux états actifs reçoivent leur durée entière et chaque état nul reçoit $T_0/2$. La période suivante repart de `000`, avec commutation simultanée des trois bras. Les deux états nuls appliquent une tension nulle entre les bornes du moteur.
+
 ## 5. Machine et scénario commun
 
 | Paramètre | Valeur | Paramètre | Valeur |
@@ -145,7 +153,7 @@ Les modèles moyennés utilisent la formulation équivalente par décalage commu
 | $L_s$, $L_r$ | 71 mH chacune | $L_m$ | 69 mH |
 | Inertie $J$ | 0,0056 kg m² | Frottement visqueux $B$ | 0,0015 N m s/rad |
 
-L’essai de 2,4 s commence à l’arrêt. La vitesse de consigne passe à 800, 1400, 600 puis $-800$ tr/min à 0,30, 0,80, 1,30 et 1,80 s. La charge de 10 N m est appliquée à 0,55 s et reste positive pendant l’inversion. Pour comparer les deux modulations dans Simscape, le moteur, la commande, le bus de 540 V et le pas électrique de 1 µs sont communs aux deux essais.
+L’essai de 2,4 s commence à l’arrêt. La vitesse de consigne passe à 800, 1400, 600 puis $-800$ tr/min à 0,30, 0,80, 1,30 et 1,80 s. La charge de 10 N m est appliquée à 0,55 s et reste positive pendant l’inversion. Les trois essais Simscape partagent le moteur, la commande, le bus de 540 V et le pas électrique de 1 µs.
 
 ## 6. Implémentations et résultats
 
@@ -189,31 +197,45 @@ Les composants de simulation sont $R_{\rm dc}=0{,}10$ Ω, $L_{\rm dc}=0{,}5$ mH 
 
 Le second modèle utilise la machine asynchrone et le pont universel à IGBT de la bibliothèque Simscape Electrical. Deux courants de phase sont mesurés, et le troisième est reconstruit par $i_c=-i_a-i_b$. Les blocs de Park SPS utilisent une convention sinus. Une permutation et un changement de signe les raccordent à la convention cosinus de la commande.
 
-Les impulsions sont calculées dans le modèle. En SPWM, un comparateur confronte les consignes à la porteuse. En SVPWM, le secteur, les durées et l’ordre des sept segments déterminent l’état de chaque bras. Les deux essais utilisent la même grille de simulation de 1 µs.
+Trois modèles graphiques partagent le même entraînement. La SPWM confronte les consignes à une porteuse triangulaire au moyen de trois comparateurs. Les deux variantes SVPWM utilisent le même calcul du secteur et des durées, avec une séquence centrée à sept segments ou une séquence directe à quatre segments.
 
 ![Modèle Simscape avec le modulateur et le pont à IGBT](matlab/outputs/diagrams/library_top.png)
 
-Le panneau **Scopes** affiche aussi les commandes des trois IGBT supérieurs. La fenêtre des commandes couvre six périodes à 10 kHz. La courbe des courants de phase montre l’ondulation de commutation au pas de simulation électrique.
+Le panneau **Scopes** affiche la vitesse du rotor, le couple moteur, les courants de phase et les courants dans le repère du flux rotorique. Les figures suivantes proviennent de l’essai en SVPWM à sept segments. Les trois courants sont superposés sur une période électrique du palier de 1400 tr/min, au pas de simulation de 1 µs. Le courant C est reconstruit à partir des deux courants mesurés.
 
-La commande `compare_foc_pwm`, dans `matlab/simulink_library`, lance les deux simulations et exporte les courbes et le tableau de mesures.
+![Vitesse du rotor et consigne dans Simscape en SVPWM](matlab/outputs/graphs/library_speed.png)
 
-![Comparaison des vitesses et des couples dans Simscape](matlab/outputs/graphs/library_pwm_comparison.png)
+![Couple électromagnétique et charge appliquée dans Simscape en SVPWM](matlab/outputs/graphs/library_torque.png)
 
-Les réponses en vitesse et en couple sont proches à l’échelle de l’essai complet. Le détail montre six périodes de commutation de **1,1050 à 1,1056 s**. La tension A–B idéale est reconstruite à partir des impulsions de grille. Les courants proviennent de la machine simulée.
+![Courants de phase A, B et C en SVPWM sur une période électrique complète](matlab/outputs/graphs/library_currents_abc_cycle.png)
 
-![Détail sur six périodes des tensions commutées et de l’ondulation de courant](matlab/outputs/graphs/library_pwm_zoom.png)
+![Courants d et q et leurs consignes dans Simscape en SVPWM](matlab/outputs/graphs/library_currents_dq.png)
 
-| Même essai Simscape | SPWM | SVPWM à sept segments |
+**Tensions commutées dans les trois modèles graphiques.** Les essais partagent le bus de 540 V, la fréquence de commutation de 10 kHz, le pas électrique de 1 µs et les réglages de commande. Les comparaisons couvrent la fenêtre de **1,1050 à 1,1056 s** à la consigne de 1400 tr/min. Les tensions de phase sont exprimées par rapport au neutre virtuel du moteur et calculées à partir des trois tensions composées mesurées à ses bornes.
+
+Le schéma des porteuses montre les trois premières périodes. En haut figurent la porteuse et les consignes maintenues enregistrées en SPWM. En bas, une comparaison équivalente est reconstruite à partir des consignes enregistrées en SVPWM à sept segments et du décalage commun. Le comparateur reproduit tous les échantillons enregistrés des commandes supérieures sur cette fenêtre.
+
+![Trois périodes Simscape avec la porteuse SPWM et la représentation équivalente de la SVPWM centrée](matlab/outputs/diagrams/pwm_carrier_simscape.png)
+
+**SPWM et SVPWM à sept segments.** L’onduleur commun donne les mêmes niveaux de tension nominaux pour chaque état. Les deux séquences répartissent chaque durée active en deux intervalles symétriques, d’où la forme proche des tensions de phase. À la première période, la SPWM passe 14 µs dans l’état `000` et 8 µs dans `111`. La SVPWM centrée attribue 10 µs à chacun des deux états nuls dans son essai. Ces durées proviennent de simulations distinctes en boucle fermée sur la même grille de 1 µs.
+
+**SPWM et SVPWM à quatre segments.** À la première période, la SPWM applique `100` sur deux intervalles de 15 µs et `101` sur deux intervalles de 24 µs. La variante à quatre segments applique chacun une seule fois, pendant 30 µs et 48 µs. La tension moyenne de la phase A vaut donc environ 194,4 V pour les deux essais sur cette période, avec des formes instantanées différentes.
+
+![Tensions de phase du moteur en SPWM et en SVPWM centrée à sept segments sur six périodes](matlab/outputs/graphs/library_pwm_voltage_svpwm7.png)
+
+![Tensions de phase du moteur en SPWM et en SVPWM directe à quatre segments sur six périodes](matlab/outputs/graphs/library_pwm_voltage_svpwm4.png)
+
+**Couple électromagnétique sur les mêmes six périodes.** La variante à quatre segments présente la plus grande variation du couple brut sur cette fenêtre. Les valeurs crête à crête correspondent à l’écart entre le maximum et le minimum enregistrés.
+
+![Couple électromagnétique brut en SPWM, SVPWM à sept segments et SVPWM à quatre segments](matlab/outputs/graphs/library_pwm_comparison.png)
+
+| Modulation | Couple moyen (N·m) | Couple crête à crête (N·m) |
 |---|---:|---:|
-| Établissement à ±10 tr/min (ms) | 65,3 / 59,0 / 67,7 / 75,0 | 69,1 / 57,5 / 70,3 / 73,1 |
-| Écart de vitesse établi maximal (tr/min) | 1,67 | 2,26 |
-| Chute de vitesse à l’application de la charge (tr/min) | 69,86 | 69,70 |
-| Flux rotorique estimé final (Wb) | 0,800 | 0,800 |
-| Courant de phase crête (A) | 20,48 | 20,51 |
-| Ondulation efficace à 1400 tr/min (A) | 0,254 | 0,234 |
-| Ondulation crête à crête moyenne à 1400 tr/min (A) | 0,944 | 0,848 |
+| SPWM | 9,87 | 2,14 |
+| SVPWM à sept segments | 10,69 | 1,96 |
+| SVPWM à quatre segments | 10,25 | 3,41 |
 
-L’ondulation est calculée sur le palier de 1400 tr/min entre 1,05 et 1,25 s. Une tendance linéaire est retirée de chaque phase à chaque période de commutation. Sur cet essai, la SVPWM réduit l’ondulation efficace de **7,7 %** et l’ondulation crête à crête moyenne de **10,2 %**. La SPWM donne le plus faible écart de vitesse en régime établi.
+La commande `compare_foc_pwm`, dans `matlab/simulink_library`, régénère les courbes de tension et de couple ainsi que les données CSV.
 
 ### 6.3 Implémentation numérique en Python
 
@@ -231,13 +253,13 @@ L’essai complémentaire à vide impose une rampe de 0 à 1000 tr/min entre 0,3
 
 ## 7. Conclusion
 
-| Essai commun | Python | Simulink à blocs | Simscape SPWM | Simscape SVPWM |
-|---|---:|---:|---:|---:|
-| Chute de vitesse à la charge (tr/min) | 69,0 | 69,17 | 69,86 | 69,70 |
-| Flux final ou estimé (Wb) | 0,800 | 0,800 | 0,800 | 0,800 |
-| Courant de phase crête (A) | 19,1 | 19,92 | 20,48 | 20,51 |
+| Essai commun | Python | Simulink à blocs | Simscape SVPWM |
+|---|---:|---:|---:|
+| Chute de vitesse à la charge (tr/min) | 69,0 | 69,17 | 69,70 |
+| Flux final ou estimé (Wb) | 0,800 | 0,800 | 0,800 |
+| Courant de phase crête (A) | 19,1 | 19,92 | 20,51 |
 
-Les trois modèles reproduisent les échelons de vitesse, l’inversion et le rejet de charge. Les blocs fondamentaux donnent accès aux équations du moteur et du bus continu. Python fournit une implémentation numérique indépendante. Le pont commuté de Simscape donne accès aux impulsions et à l’ondulation du courant pour comparer les modulations. La consigne de flux est fixe et l’orientation indirecte utilise la constante de temps rotorique nominale.
+Les trois modèles reproduisent les échelons de vitesse, l’inversion et le rejet de charge. Les blocs fondamentaux donnent accès aux équations du moteur et du bus continu. Python fournit une implémentation numérique indépendante. L’entraînement Simscape montre l’effet de l’ordre et de la durée des états de commutation sur la tension de phase et le couple électromagnétique. La consigne de flux est fixe et l’orientation indirecte utilise la constante de temps rotorique nominale.
 
 ## Annexe A. Équations de la machine dans le repère fixe
 

@@ -141,6 +141,14 @@ If $T_1+T_2>T_s$, the requested voltage is outside the hexagon in that direction
 
 The fundamental-block and Python average-value models use an equivalent centered modulator. They add a common offset $-\tfrac12(\max(v_a^*,v_b^*,v_c^*)+\min(v_a^*,v_b^*,v_c^*))$ to the three phase commands. This centers their highest and lowest values while preserving phase-to-phase voltage differences. The Simscape SVPWM model explicitly lays out the seven timed states. [TI min-max implementation](https://software-dl.ti.com/processor-industrial-sw/esd/motor_control_sdk/am243x/2025_00_00_06/docs/api_guide_am243x/svgen_8h_source.html)
 
+**Why SPWM can give the same seven segments.** The teaching diagram uses 50 Hz sine references and a slowed 150 Hz triangle to fit three PWM periods in one electrical cycle.
+
+![Illustration with 50 Hz phase references and a 150 Hz carrier showing the three gates and combined state order](matlab/outputs/diagrams/pwm_carrier_slow.png)
+
+In the enlarged period, the held commands are ordered A, C, B from highest to lowest. As the shared SPWM triangle falls, the three upper gates turn on in that order. As it rises, they turn off in reverse. Each leg has one continuous on pulse. Together, the three legs pass through `000 → 100 → 101 → 111 → 101 → 100 → 000`. Centered SVPWM schedules this order from the sector and dwell times. Its equivalent carrier adds a common offset, preserving the crossing order and shifting the crossing times.
+
+**Forward four-segment variant.** The same dwell calculation can drive the sequence `000 → 100 → 101 → 111` in this sector. The two active states receive their full dwells and each zero state receives $T_0/2$. The next period restarts at `000`, so all three legs switch together at that boundary. Both zero states apply zero voltage between motor terminals.
+
 ## 5. Common machine and test conditions
 
 | Parameter | Value | Parameter | Value |
@@ -151,7 +159,7 @@ The fundamental-block and Python average-value models use an equivalent centered
 | $L_s$, $L_r$ | 71 mH each | $L_m$ | 69 mH |
 | Inertia $J$ | 0.0056 kg m² | Viscous friction $B$ | 0.0015 N m s/rad |
 
-The 2.4 s test starts at standstill and allows the flux to build. Speed steps reach 800, 1400, 600, and $-800$ rpm at 0.30, 0.80, 1.30, and 1.80 s. A positive 10 N m load torque is applied at 0.55 s and stays applied through the reversal. The switching comparison uses the same model, bridge, controller, 540 V source, test conditions, and 1 µs electrical time step for both modes. Only the modulation selection changes.
+The 2.4 s test starts at standstill and allows the flux to build. Speed steps reach 800, 1400, 600, and $-800$ rpm at 0.30, 0.80, 1.30, and 1.80 s. A positive 10 N m load torque is applied at 0.55 s and stays applied through the reversal. The three switching variants share the motor, bridge, controller, 540 V source, test conditions, and 1 µs electrical time step.
 
 ## 6. Implementation and results
 
@@ -193,31 +201,45 @@ The illustrative component values are $R_{\rm dc}=0.10$ Ω, $L_{\rm dc}=0.5$ mH,
 
 ### 6.2 MATLAB and Simscape Electrical with the library IGBT bridge
 
-The switching model uses the Simscape Electrical induction-machine and Universal Bridge blocks with discrete controllers. It measures two phase currents and reconstructs the third as $i_c=-i_a-i_b$. The SPS Park blocks use a sine reference, so the controller adapts the axis order and sign to its cosine-referenced convention. Both sets of gates come from a custom Simulink subsystem. SPWM compares held commands with the triangle. SVPWM calculates the sector and dwell times and evaluates the centered seven-segment sequence. Switching instants are resolved on the common 1 µs grid.
+The switching model uses the Simscape Electrical induction-machine and Universal Bridge blocks with discrete controllers. It measures two phase currents and reconstructs the third as $i_c=-i_a-i_b$. The SPS Park blocks use a sine reference, so the controller adapts the axis order and sign to its cosine-referenced convention. The three graphical models share this drive. The SPWM variant uses a triangle and three comparators. The two SVPWM variants use the same sector and dwell calculations, with either the centered seven-segment or the forward four-segment sequence.
 
 ![Simscape switching drive with the custom modulator](matlab/outputs/diagrams/library_top.png)
 
-The **Scopes** panel also shows the three upper IGBT gate commands. The gate view spans six PWM periods at 10 kHz, and the phase-current view shows the switching ripple at the electrical simulation step.
+The **Scopes** panel shows the rotor speed, motor torque, phase currents, and currents in the rotor-flux frame. The following figures use the default seven-segment SVPWM run. The three phase currents share one set of axes and span one electrical cycle on the 1400 rpm plateau. The plot uses the original 1 µs samples. Phase C is reconstructed from the two measured currents.
 
-Run `compare_foc_pwm` in `matlab/simulink_library` to simulate both modes and regenerate the overlays and CSV.
+![Simscape SVPWM rotor speed and reference](matlab/outputs/graphs/library_speed.png)
 
-![Simscape SPWM and SVPWM speed and torque comparison](matlab/outputs/graphs/library_pwm_comparison.png)
+![Simscape SVPWM electromagnetic torque and applied load](matlab/outputs/graphs/library_torque.png)
 
-The speed and torque curves nearly overlap at the scale of the full test. The close-up shows six PWM periods from **1.1050 to 1.1056 s**. The voltage panels show the ideal A-to-B voltage from the gate states. The current panels use the simulated motor current.
+![Simscape SVPWM raw phase A, B and C currents over one electrical cycle](matlab/outputs/graphs/library_currents_abc_cycle.png)
 
-![Simscape zoom on six carrier periods with SPWM and SVPWM line voltage and current ripple](matlab/outputs/graphs/library_pwm_zoom.png)
+![Simscape SVPWM d- and q-axis currents and references](matlab/outputs/graphs/library_currents_dq.png)
 
-| Same Simscape test | SPWM | Seven-segment SVPWM |
+**Switching voltage in the three graphical models.** The three runs use the same 540 V DC bus, 10 kHz switching frequency, 1 µs electrical step and controller settings. The voltage and torque comparisons cover **1.1050 to 1.1056 s** at the 1400 rpm command. The phase voltages are relative to the virtual motor neutral and are derived from the three line voltages measured at the motor terminals.
+
+The carrier diagram shows the first three periods. The top uses the recorded SPWM triangle and held commands. The bottom reconstructs a carrier comparison from the recorded seven-segment commands and the common offset. Its comparator reproduces every recorded upper-gate sample in this window.
+
+![Three Simscape PWM periods showing the SPWM triangle and equivalent centered SVPWM comparison](matlab/outputs/diagrams/pwm_carrier_simscape.png)
+
+**SPWM and seven-segment SVPWM.** The shared inverter gives each switch state the same nominal voltage levels. Both sequences split each active dwell into two mirrored intervals, so the phase-voltage plots have a similar shape. In the first period, the SPWM gate sequence spends 14 µs in `000` and 8 µs in `111`. Centered SVPWM gives each zero state 10 µs in its own run. These durations come from separate closed-loop runs on the same 1 µs grid.
+
+**SPWM and four-segment SVPWM.** In the first period, SPWM applies `100` in two 15 µs intervals and `101` in two 24 µs intervals. The four-segment sequence applies each state once for 30 µs and 48 µs. Both runs therefore give phase A a period-average voltage of approximately 194.4 V in this period. The phase voltages still have different shapes within the period.
+
+![Motor phase voltages for SPWM and centered seven-segment SVPWM over six periods](matlab/outputs/graphs/library_pwm_voltage_svpwm7.png)
+
+![Motor phase voltages for SPWM and forward four-segment SVPWM over six periods](matlab/outputs/graphs/library_pwm_voltage_svpwm4.png)
+
+**Electromagnetic torque over the same six periods.** The four-segment run shows the largest raw torque swing in this window. Peak-to-peak values are calculated from the maximum and minimum of each recorded trace.
+
+![Raw electromagnetic torque for SPWM, seven-segment SVPWM and four-segment SVPWM](matlab/outputs/graphs/library_pwm_comparison.png)
+
+| Modulation | Mean torque (N·m) | Peak-to-peak torque (N·m) |
 |---|---:|---:|
-| Settling to within ±10 rpm (ms) | 65.3 / 59.0 / 67.7 / 75.0 | 69.1 / 57.5 / 70.3 / 73.1 |
-| Maximum settled speed error (rpm) | 1.67 | 2.26 |
-| Load-step dip (rpm) | 69.86 | 69.70 |
-| Final rotor-flux estimate (Wb) | 0.800 | 0.800 |
-| Full-rate peak phase current (A) | 20.48 | 20.51 |
-| Current ripple RMS at 1400 rpm (A) | 0.254 | 0.234 |
-| Mean peak-to-peak current ripple at 1400 rpm (A) | 0.944 | 0.848 |
+| SPWM | 9.87 | 2.14 |
+| Seven-segment SVPWM | 10.69 | 1.96 |
+| Four-segment SVPWM | 10.25 | 3.41 |
 
-Ripple was evaluated over the 1.05 to 1.25 s portion of the 1400 rpm plateau. Each phase and PWM period was detrended with a fitted straight line before evaluating the RMS and mean peak-to-peak residual. In this test, SVPWM lowers those measures by **7.7%** and **10.2%**, respectively. SPWM gives the smaller settled speed error. These differences describe this operating point, controller, and time grid. The modulation change shifts the pulse timing while the speed loop continues to meet the same reference.
+Run `compare_foc_pwm` in `matlab/simulink_library` to regenerate the voltage and torque plots and the underlying CSV data.
 
 ### 6.3 Python as an independent numerical implementation
 
@@ -235,13 +257,13 @@ The Python-only unloaded tracking study ramps to 1000 rpm from 0.30 to 0.90 s an
 
 ## 7. Conclusion
 
-| Shared step test | Python | Fundamental Simulink | Simscape SPWM | Simscape SVPWM |
-|---|---:|---:|---:|---:|
-| Load-step dip (rpm) | 69.0 | 69.17 | 69.86 | 69.70 |
-| Final rotor flux or estimate (Wb) | 0.800 | 0.800 | 0.800 | 0.800 |
-| Peak phase current (A) | 19.1 | 19.92 | 20.48 | 20.51 |
+| Shared step test | Python | Fundamental Simulink | Simscape SVPWM |
+|---|---:|---:|---:|
+| Load-step dip (rpm) | 69.0 | 69.17 | 69.70 |
+| Final rotor flux or estimate (Wb) | 0.800 | 0.800 | 0.800 |
+| Peak phase current (A) | 19.1 | 19.92 | 20.51 |
 
-The three implementations reproduce the speed steps, reversal, and load rejection with the same rotor-flux target. The fundamental blocks expose the motor and DC-link equations. Python provides an independent numerical model and makes it easy to add speed profiles. The Simscape bridge resolves individual switching pulses and makes the SPWM and SVPWM ripple comparison possible. The flux reference stays fixed in this study, and the indirect orientation uses the nominal rotor time constant.
+The three implementations reproduce the speed steps, reversal, and load rejection with the same rotor-flux target. The fundamental blocks expose the motor and DC-link equations. Python provides an independent numerical model and makes it easy to add speed profiles. The Simscape drive shows how the order and duration of the switching states shape phase voltage and electromagnetic torque. The flux reference stays fixed in this study, and the indirect orientation uses the nominal rotor time constant.
 
 ## Appendix A. Stationary-frame machine equations
 
