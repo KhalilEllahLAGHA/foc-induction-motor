@@ -213,13 +213,9 @@ Le panneau **Scopes** affiche la vitesse du rotor, le couple moteur, les courant
 
 **Tensions commutées dans les trois modèles graphiques.** Les essais partagent le bus de 540 V, la fréquence de commutation de 10 kHz, le pas électrique de 1 µs et les réglages de commande. Les comparaisons couvrent la fenêtre de **1,1050 à 1,1056 s** à la consigne de 1400 tr/min. Les tensions de phase sont exprimées par rapport au neutre virtuel du moteur et calculées à partir des trois tensions composées mesurées à ses bornes.
 
-Le schéma des porteuses montre les trois premières périodes. En haut figurent la porteuse et les consignes maintenues enregistrées en SPWM. En bas, une comparaison équivalente est reconstruite à partir des consignes enregistrées en SVPWM à sept segments et du décalage commun. Le comparateur reproduit tous les échantillons enregistrés des commandes supérieures sur cette fenêtre.
+**SPWM et SVPWM à sept segments.** Sur la première période, la SPWM passe 14 µs dans l’état `000` et 8 µs dans `111`. En SVPWM centrée, ces deux états durent 10 µs chacun.
 
-![Trois périodes Simscape avec la porteuse SPWM et la représentation équivalente de la SVPWM centrée](matlab/outputs/diagrams/pwm_carrier_simscape.png)
-
-**SPWM et SVPWM à sept segments.** L’onduleur commun donne les mêmes niveaux de tension nominaux pour chaque état. Les deux séquences répartissent chaque durée active en deux intervalles symétriques, d’où la forme proche des tensions de phase. À la première période, la SPWM passe 14 µs dans l’état `000` et 8 µs dans `111`. La SVPWM centrée attribue 10 µs à chacun des deux états nuls dans son essai. Ces durées proviennent de simulations distinctes en boucle fermée sur la même grille de 1 µs.
-
-**SPWM et SVPWM à quatre segments.** À la première période, la SPWM applique `100` sur deux intervalles de 15 µs et `101` sur deux intervalles de 24 µs. La variante à quatre segments applique chacun une seule fois, pendant 30 µs et 48 µs. La tension moyenne de la phase A vaut donc environ 194,4 V pour les deux essais sur cette période, avec des formes instantanées différentes.
+**SPWM et SVPWM à quatre segments.** Sur la première période, la phase A atteint une tension moyenne d’environ 194,4 V dans les deux essais. En SVPWM à quatre segments, les états `100` et `101` durent respectivement 30 µs et 48 µs.
 
 ![Tensions de phase du moteur en SPWM et en SVPWM centrée à sept segments sur six périodes](matlab/outputs/graphs/library_pwm_voltage_svpwm7.png)
 

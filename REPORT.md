@@ -217,13 +217,9 @@ The **Scopes** panel shows the rotor speed, motor torque, phase currents, and cu
 
 **Switching voltage in the three graphical models.** The three runs use the same 540 V DC bus, 10 kHz switching frequency, 1 µs electrical step and controller settings. The voltage and torque comparisons cover **1.1050 to 1.1056 s** at the 1400 rpm command. The phase voltages are relative to the virtual motor neutral and are derived from the three line voltages measured at the motor terminals.
 
-The carrier diagram shows the first three periods. The top uses the recorded SPWM triangle and held commands. The bottom reconstructs a carrier comparison from the recorded seven-segment commands and the common offset. Its comparator reproduces every recorded upper-gate sample in this window.
+**SPWM and seven-segment SVPWM.** In the first period, SPWM spends 14 µs in `000` and 8 µs in `111`. In centered SVPWM, these two states last 10 µs each.
 
-![Three Simscape PWM periods showing the SPWM triangle and equivalent centered SVPWM comparison](matlab/outputs/diagrams/pwm_carrier_simscape.png)
-
-**SPWM and seven-segment SVPWM.** The shared inverter gives each switch state the same nominal voltage levels. Both sequences split each active dwell into two mirrored intervals, so the phase-voltage plots have a similar shape. In the first period, the SPWM gate sequence spends 14 µs in `000` and 8 µs in `111`. Centered SVPWM gives each zero state 10 µs in its own run. These durations come from separate closed-loop runs on the same 1 µs grid.
-
-**SPWM and four-segment SVPWM.** In the first period, SPWM applies `100` in two 15 µs intervals and `101` in two 24 µs intervals. The four-segment sequence applies each state once for 30 µs and 48 µs. Both runs therefore give phase A a period-average voltage of approximately 194.4 V in this period. The phase voltages still have different shapes within the period.
+**SPWM and four-segment SVPWM.** Phase A averages about 194.4 V in both runs over the first period. In four-segment SVPWM, states `100` and `101` last 30 µs and 48 µs, respectively.
 
 ![Motor phase voltages for SPWM and centered seven-segment SVPWM over six periods](matlab/outputs/graphs/library_pwm_voltage_svpwm7.png)
 
