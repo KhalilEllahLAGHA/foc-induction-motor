@@ -335,3 +335,5 @@ Ces gains sont les valeurs nominales de réglage en temps continu utilisées dan
 4. Texas Instruments, [Space-Vector PWM with TMS320C24x](https://www.ti.com/lit/an/spra524/spra524.pdf).
 5. Imperix, [Space Vector Modulation](https://imperix.com/doc/implementation/space-vector-modulation).
 6. MathWorks, [Three-Phase Two-Level PWM Generator](https://www.mathworks.com/help/simscape-electrical/ref/pwmgeneratorthreephasetwolevel.html).
+
+**Note sur la rédaction.** J’ai rédigé la première version du rapport et y ai apporté mes propres idées. J’ai utilisé ChatGPT pour réécrire le texte.
